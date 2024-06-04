@@ -1,0 +1,134 @@
+---
+- name: Play for preparing to OCP4 single-node setup
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Preparing workspace
+      ansible.builtin.file:
+        state: directory
+        path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}"
+        mode: "0755"
+
+    - name: Fetch information about the release
+      ansible.builtin.uri:
+        url: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/release.txt"
+        return_content: true
+      register: image_version
+
+    - name: Save version as fact
+      ansible.builtin.set_fact:
+        release_image: "{{ image_version.content | regex_search('Pull From: ([^\\s]+)') | replace('Pull From: ', '') }}"
+
+    - name: Downloading Openshift CLI
+      ansible.builtin.unarchive:
+        src: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/openshift-client-linux-{{ cluster.version }}.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+      become: true
+      when:
+        - cluster.version != "latest"
+        - cluster.version != "fast"
+        - cluster.version != "stable"
+        - cluster.version != "candidate"
+
+    - name: Downloading Openshift CLI
+      ansible.builtin.unarchive:
+        src: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/openshift-client-linux.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+      become: true
+      when: cluster.version == "latest" or cluster.version == "fast" or cluster.version == "stable" or cluster.version == "candidate"
+
+    - name: Checking for OCP cli tool # noqa no-changed-when
+      ansible.builtin.command: oc
+      register: output
+      failed_when: output.rc != 0
+
+    - name: Download coreOS ISO and save it locally
+      ansible.builtin.get_url:
+        url: "{{ downloads.coreos.live_media }}"
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso"
+        mode: "0755"
+
+    - name: Download coreOS-installer and save it locally
+      ansible.builtin.get_url:
+        url: "{{ downloads.coreos.installer }}"
+        dest: /usr/local/bin/coreos-installer
+        mode: +x
+      become: true
+
+    - name: Copy pull secret to a file
+      ansible.builtin.copy:
+        content: "{{ cluster.pullSecret }}"
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/pull-secret"
+        mode: "0755"
+
+    - name: Extract openshift-baremetal-install from release image # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: "oc adm release extract --registry-config {{ workspace_directory.base_path }}/{{ cluster.name }}/pull-secret --command=openshift-baremetal-install --to {{ workspace_directory.base_path }}/{{ cluster.name }}/openshift-baremetal-install {{ release_image }}" # noqa yaml[line-length]
+
+    - name: Move openshift installer to PATH
+      ansible.builtin.copy:
+        src: "{{ workspace_directory.base_path }}/{{ cluster.name }}/openshift-baremetal-install/openshift-baremetal-install"
+        dest: /usr/local/bin/openshift-baremetal-install
+        remote_src: true
+        mode: +x
+      become: true
+
+    - name: Getting ssh public key
+      ansible.builtin.slurp:
+        src: "~/.ssh/id_rsa.pub"
+      register: key
+
+    - name: Set SSH Keys as fact
+      ansible.builtin.set_fact:
+        sshkey: "{{ key['content'] | b64decode }}"
+
+    - name: Firing up install-config.yaml
+      ansible.builtin.template:
+        src: templates/install-config-sno.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/install-config.yaml"
+        mode: "0755"
+
+    - name: Generate ignition config # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: openshift-baremetal-install --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }} create single-node-ignition-config # noqa yaml[line-length]
+
+    - name: Patch live ISO with generate ignition file # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: coreos-installer iso ignition embed -fi {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/bootstrap-in-place-for-live-iso.ign {{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso # noqa yaml[line-length]
+
+    - name: Provision OCP node with Terraform
+      community.general.terraform:
+        binary_path: /usr/local/bin/terraform
+        project_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/terraform/sno"
+        force_init: true
+        variables:
+          hostname: "sno"
+          libvirt_network: "{{ cluster.name }}"
+          libvirt_pool: "{{ cluster.name }}"
+          guest_ip: "{{ cluster_nodes.host_list.sno.0.ip }}"
+          guest_mac: "{{ cluster_nodes.host_list.sno.0.mac }}"
+          coreos_iso_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso"
+          cpu: "{{ cluster_nodes.specs.sno.vcpu }}"
+          memory: "{{ cluster_nodes.specs.sno.mem }}"
+          vm_volume_size: "{{ cluster_nodes.specs.sno.disk }}"
+          local_volume_enabled: "{{ local_storage.enabled | default(false, true) }}"
+          local_volume_size: "{{ local_storage.volume_size | default(omit, true) }}"
+          vm_additional_nic: "{{ additional_nic.enabled | default(false, true) }}"
+          vm_additional_nic_network: "{{ additional_nic.network | default(cluster.name, true) }}"
+        state: present
+      register: output_sno
+      become: true
+
+    - name: Start Openshift install # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: openshift-baremetal-install wait-for install-complete --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }} # noqa yaml[line-length]
+      ignore_errors: true
+
+    - name: Start Openshift install # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: openshift-baremetal-install wait-for install-complete --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }} # noqa yaml[line-length]
+
+    - name: Your cluster is ready
+      ansible.builtin.debug:
+        msg:
+          - "Cluster setup finished"
+          - "Console URL: https://console-openshift-console.apps.{{ cluster.name }}.{{ domain }}"
+          - "Kubeconfig available at {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/auth or log in the console with the credentials you chose" # noqa yaml[line-length]

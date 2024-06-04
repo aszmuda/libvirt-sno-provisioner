@@ -1,0 +1,43 @@
+---
+- name: This play ensures prerequisites are satisfied before installing
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Check if distribution is supported
+      ansible.builtin.fail:
+        msg: Your distribution is actually unsupported
+      when:
+        - ansible_distribution != 'RedHat'
+
+    - name: Block of cluster checks
+      block:
+        - name: Fail if BASE_DOMAIN env var is not defined
+          ansible.builtin.fail:
+            msg: "BASE_DOMAIN environment variable is missing"
+          when: (domain is undefined) or (domain | length < 1)
+
+        - name: Fail if CLUSTER_NAME env var is not defined
+          ansible.builtin.fail:
+            msg: "CLUSTER_NAME environment variable is missing"
+          when: (cluster.name is undefined) or (cluster.name | length < 1)
+
+        - name: Fail fast if node count is not consistent
+          ansible.builtin.fail:
+            msg: "Only ONE node can be present"
+          when: (cluster_nodes.host_list.sno | count != 1)
+
+        - name: Fail fast if SNO node doesn't meet minimum requirements
+          ansible.builtin.fail:
+            msg: "SNO node must be provisioned with at least 16GB memory, 60GB storage and 8vCPUs"
+          when: (cluster_nodes.specs.sno.vcpu < 8) or (cluster_nodes.specs.sno.mem < 16) or (cluster_nodes.specs.sno.disk < 60)
+
+        - name: Check for pullSecret variable and fail fast
+          ansible.builtin.fail:
+            msg: "Check the pullSecret var in files/vars.yaml"
+          when: (cluster.pullSecret is undefined) or (cluster.pullSecret | length < 1)
+
+        - name: Check for CERT_DIR variable and fail fast
+          ansible.builtin.fail:
+            msg: "CERT_DIR environment variable is missing"
+          when: (cert_dir is undefined) or (cert_dir | length < 1)

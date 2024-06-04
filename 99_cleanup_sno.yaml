@@ -1,0 +1,43 @@
+---
+- name: Cleanup playbook
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Set home directory as fact
+      ansible.builtin.set_fact:
+        home_dir: "{{ ansible_env.HOME }}"
+
+    - name: Destroy cluster VM
+      community.general.terraform:
+        binary_path: /usr/local/bin/terraform
+        force_init: true
+        project_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/terraform/{{ item }}"
+        state: absent
+      loop:
+        - sno
+      become: true
+
+    - name: Use TF project to ensure pool and network are removed
+      community.general.terraform:
+        binary_path: /usr/local/bin/terraform
+        project_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/terraform/libvirt-resources-sno"
+        force_init: true
+        state: absent
+      become: true
+
+    - name: Delete all created paths
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/local/bin/terraform
+        - /usr/local/bin/openshift-baremetal-install
+        - /usr/local/bin/coreos-installer
+        - /usr/local/bin/oc
+        - /usr/local/bin/kubectl
+        - /usr/local/bin/helm
+        - /usr/local/bin/README.md
+        - /usr/local/bin/yq
+        - "{{ workspace_directory.base_path }}/{{ cluster.name }}"
+      become: true

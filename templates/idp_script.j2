@@ -1,0 +1,12 @@
+#!/bin/bash
+export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
+htpasswd -c -B -b {{ workspace_directory.base_path }}/{{ cluster.name }}/user.htpasswd {{ cluster.ocp_user }} {{ cluster.ocp_pass }}
+htpasswd -B -b {{ workspace_directory.base_path }}/{{ cluster.name }}/user.htpasswd user1 user1
+htpasswd -B -b {{ workspace_directory.base_path }}/{{ cluster.name }}/user.htpasswd user2 user2
+htpasswd -B -b {{ workspace_directory.base_path }}/{{ cluster.name }}/user.htpasswd user3 user3
+/usr/local/bin/oc create secret generic htpass-secret --from-file=htpasswd={{ workspace_directory.base_path }}/{{ cluster.name }}/user.htpasswd -n openshift-config
+/usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/idp.yaml
+/usr/local/bin/oc adm groups new cluster-admins
+/usr/local/bin/oc adm groups add-users cluster-admins {{ cluster.ocp_user }}
+/usr/local/bin/oc adm policy add-cluster-role-to-group cluster-admin cluster-admins
+/usr/local/bin/oc delete secrets kubeadmin -n kube-system

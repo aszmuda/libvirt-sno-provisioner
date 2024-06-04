@@ -1,0 +1,25 @@
+domain: "{{ lookup('env', 'BASE_DOMAIN') }}"
+network_cidr: 192.168.1.0/24
+cluster:
+  version: stable
+  name: "{{ lookup('env', 'CLUSTER_NAME') }}"
+  ocp_user: admin
+  ocp_pass: admin
+  pullSecret: "{{ lookup('env', 'PULL_SECRET') }}"
+cluster_nodes:
+  host_list:
+    sno:
+      - ip: 192.168.1.17
+        mac: 52:54:00:1f:35:50
+  specs:
+    sno:
+      vcpu: 16
+      mem: 56
+      disk: 240
+local_storage:
+  enabled: true
+  volume_size: 200
+additional_nic:
+  enabled: false
+  network: ""
+cert_dir: "{{ lookup('env', 'CERT_DIR') }}"

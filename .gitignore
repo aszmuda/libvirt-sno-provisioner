@@ -1,0 +1,6 @@
+id_rsa*
+*.log
+terraform.tfstate*
+.terraform*
+ansible.log
+execution-environment/context

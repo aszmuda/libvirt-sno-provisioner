@@ -1,0 +1,23 @@
+---
+- name: Play for updating OCP certs
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+
+  tasks:
+    - name: Download yq installer and save it locally
+      ansible.builtin.get_url:
+        url: "{{ downloads.yq.base_url }}"
+        dest: /usr/local/bin/yq
+        mode: +x
+      become: true
+
+    - name: Firing configuration script template for certificates update
+      ansible.builtin.template:
+        src: templates/certs.j2
+        dest: /tmp/certs.sh
+        mode: +x
+
+    - name: Updating certs # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: /tmp/certs.sh
+

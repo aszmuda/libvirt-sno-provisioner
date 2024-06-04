@@ -1,0 +1,22 @@
+---
+- name: This play installs needed tools to provision infrastructure VMs
+  hosts: vm_host
+  vars_files:
+    - sno_vars.yaml
+  tasks:
+    - name: Set home directory as fact for the user
+      ansible.builtin.set_fact:
+        home_dir: "{{ ansible_env.HOME }}"
+
+    - name: Creating workspace
+      ansible.builtin.file:
+        state: directory
+        path: "{{ workspace_directory.base_path }}/{{ cluster.name }}"
+        recurse: true
+
+    - name: Copy terraform files on host
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/terraform"
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/"
+        mode: "0755"
+

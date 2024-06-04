@@ -1,0 +1,33 @@
+---
+- name: Play for preparing to OCP4 single-node setup
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Ensuring httpd-tools is present
+      ansible.builtin.yum:
+        name: httpd-tools
+        state: present
+      become: true
+
+    - name: Ensuring passlib is present
+      ansible.builtin.pip:
+        name:
+          - passlib
+          - bcrypt
+
+    - name: Firing yaml configuration template for identity providers
+      ansible.builtin.template:
+        src: templates/idp.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/idp.yaml"
+        mode: "0755"
+
+    - name: Firing configuration script template for idp and user creation
+      ansible.builtin.template:
+        src: templates/idp_script.j2
+        dest: /tmp/idp.sh
+        mode: +x
+
+    - name: Creating idp and user # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: /tmp/idp.sh
+

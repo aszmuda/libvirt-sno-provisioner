@@ -1,0 +1,16 @@
+virtualization_packages:
+  rhel:
+    - unzip
+    - git
+    - gcc
+    - make
+    - python3-lxml
+    - python3-netaddr
+    - python3-libvirt
+    - python3-devel
+    - libvirt
+    - qemu-kvm
+    - virt-install
+    - virt-manager
+    - httpd-tools
+

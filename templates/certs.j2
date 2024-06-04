@@ -1,0 +1,14 @@
+#!/bin/bash
+export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
+
+cd {{ cert_dir }}
+/usr/local/bin/oc create configmap custom-ca --from-file=ca-bundle.crt=ca.cer -n openshift-config
+/usr/local/bin/oc patch proxy/cluster --type=merge --patch='{"spec":{"trustedCA":{"name":"custom-ca"}}}'
+/usr/local/bin/oc create secret tls router-certs --cert={{ domain }}.cer --key={{ domain }}.key -n openshift-ingress
+/usr/local/bin/oc patch ingresscontroller.operator default --type=merge -p '{"spec":{"defaultCertificate": {"name": "router-certs"}}}' -n openshift-ingress-operator
+/usr/local/bin/oc create secret tls api-certs --cert={{ domain }}.cer --key={{ domain }}.key -n openshift-config
+/usr/local/bin/oc patch apiserver cluster --type=merge -p '{"spec":{"servingCerts": {"namedCertificates": [{"names": ["api.{{ cluster.name }}.{{ domain }}"], "servingCertificate": {"name": "api-certs"}}]}}}'  -n openshift-config
+
+export CACERT=$(base64 {{ cert_dir }}/ca.cer -w 0)
+yq e -i '.clusters.0.cluster.certificate-authority-data = env(CACERT)' {{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
+cp {{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig ~/.kube/config
