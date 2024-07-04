@@ -19,10 +19,24 @@
     - name: Save version as fact
       ansible.builtin.set_fact:
         release_image: "{{ image_version.content | regex_search('Pull From: ([^\\s]+)') | replace('Pull From: ', '') }}"
+    
+    - name: OCP version number
+      ansible.builtin.set_fact:
+        coreos_live_media: "{{ downloads.coreos.live_media }}/latest/rhcos-live.x86_64.iso"
+      when: cluster.version == "latest" or cluster.version == "fast" or cluster.version == "stable" or cluster.version == "candidate"
+
+    - name: OCP version number
+      ansible.builtin.set_fact:
+        coreos_live_media: "{{ downloads.coreos.live_media }}/{{ image_version.content | regex_search('\\d\\.{1}\\d{1,2}') }}/latest/rhcos-live.x86_64.iso"
+      when:
+        - cluster.version != "latest"
+        - cluster.version != "fast"
+        - cluster.version != "stable"
+        - cluster.version != "candidate"
 
     - name: Downloading Openshift CLI
       ansible.builtin.unarchive:
-        src: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/openshift-client-linux-{{ cluster.version }}.tar.gz"
+        src: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/openshift-client-linux.tar.gz"
         dest: /usr/local/bin
         remote_src: true
       become: true
@@ -47,7 +61,7 @@
 
     - name: Download coreOS ISO and save it locally
       ansible.builtin.get_url:
-        url: "{{ downloads.coreos.live_media }}"
+        url: "{{ coreos_live_media }}"
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso"
         mode: "0755"
 

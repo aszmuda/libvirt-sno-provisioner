@@ -1,0 +1,56 @@
+---
+- name: This play installs needed tools to provision infrastructure VMs
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  become: true
+  tasks:
+    - name: Install needed packages
+      ansible.builtin.yum:
+        name: "{{ virtualization_packages.rhel }}"
+        state: latest # noqa package-latest
+      when:
+        - ansible_distribution == 'RedHat'
+        - ansible_distribution == 'Fedora'
+
+    - name: Download and provision Terraform
+      ansible.builtin.unarchive:
+        src: "{{ terraform_release_url }}"
+        dest: /usr/local/bin/
+        mode: "0755"
+        remote_src: true
+
+    - name: Virtualization services are enabled
+      ansible.builtin.service:
+        name: libvirtd
+        state: started
+        enabled: true
+      when:
+        - ansible_distribution == 'RedHat'
+        - ansible_distribution == 'Fedora'
+
+
+    - name: Ensure libvirt can use root as user
+      ansible.builtin.replace:
+        path: /etc/libvirt/qemu.conf
+        regexp: "{{ item.regexp }}"
+        replace: "{{ item.line }}"
+      loop:
+        - regexp: '#user = "root"'
+          line: 'user = "root"'
+        - regexp: '#group = "root"'
+          line: 'group = "root"'
+
+
+    - name: Use TF project to ensure pool and network are defined
+      community.general.terraform:
+        binary_path: /usr/local/bin/terraform
+        project_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/terraform/libvirt-resources-sno"
+        variables:
+          domain: "{{ cluster.name }}.{{ domain }}"
+          network_cidr: ' ["{{ network_cidr }}"]'
+          cluster_name: "{{ cluster.name }}"
+          dns: "{{ cluster_nodes.host_list.sno-worker.0.ip }}"
+        force_init: true
+        state: present
+      become: true

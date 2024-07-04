@@ -6,7 +6,7 @@ downloads:
     base_url: https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
   coreos:
     installer: https://mirror.openshift.com/pub/openshift-v4/clients/coreos-installer/latest/coreos-installer
-    live_media: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos/latest/rhcos-live.x86_64.iso
+    live_media: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos
 workspace_directory:
   base_path: "/var/tmp/ocpsetup"
   config_dir: config
