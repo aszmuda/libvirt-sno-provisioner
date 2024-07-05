@@ -25,7 +25,7 @@
         - name: Fail fast if node count is not consistent
           ansible.builtin.fail:
             msg: "Only ONE node can be present"
-          when: (cluster_nodes.host_list.sno | count != 1)
+          when: (cluster_nodes.host_list.sno | count < 1)
 
         - name: Fail fast if SNO node doesn't meet minimum requirements
           ansible.builtin.fail:

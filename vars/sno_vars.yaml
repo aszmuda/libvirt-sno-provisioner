@@ -16,7 +16,7 @@ cluster_nodes:
   specs:
     sno:
       vcpu: 24
-      mem: 56
+      mem: 48
       disk: 240
     sno_worker:
       vcpu: 9
