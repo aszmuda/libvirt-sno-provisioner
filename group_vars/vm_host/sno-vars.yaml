@@ -7,6 +7,7 @@ downloads:
   coreos:
     installer: https://mirror.openshift.com/pub/openshift-v4/clients/coreos-installer/latest/coreos-installer
     live_media: https://mirror.openshift.com/pub/openshift-v4/dependencies/rhcos
+    butane: https://mirror.openshift.com/pub/openshift-v4/clients/butane/latest/butane
 workspace_directory:
   base_path: "/var/tmp/ocpsetup"
   config_dir: config

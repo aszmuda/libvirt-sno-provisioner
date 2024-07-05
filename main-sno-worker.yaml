@@ -1,0 +1,7 @@
+---
+ - import_playbook: 00_sno_worker_prerequisites.yaml
+ - import_playbook: 01_sno_setup_working_directory.yaml
+ - import_playbook: 03_sno_worker_install_virtualization_tools.yaml
+ - import_playbook: 71_setup_sno_worker.yaml
+#  - import_playbook: 80_setup_idp.yaml
+#  - import_playbook: 90_update_certs.yaml

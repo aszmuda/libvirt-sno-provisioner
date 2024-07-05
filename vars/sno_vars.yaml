@@ -8,10 +8,9 @@ cluster:
   pullSecret: "{{ lookup('env', 'PULL_SECRET') }}"
 cluster_nodes:
   host_list:
-    - sno:
+      sno:
       - ip: 192.168.1.17
         mac: 52:54:00:1f:35:50
-    - sno-worker:
       - ip: 192.168.1.18
         mac: 52:54:00:05:ff:73
   specs:
@@ -19,12 +18,16 @@ cluster_nodes:
       vcpu: 24
       mem: 56
       disk: 240
-    sno-worker:
+    sno_worker:
       vcpu: 9
-      mem: 8
+      mem: 48
       disk: 120
+      disk_drive: /dev/vda
 local_storage:
   enabled: true
+  volume_size: 200
+local_storage_worker:
+  enabled: false
   volume_size: 200
 additional_nic:
   enabled: false

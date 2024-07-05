@@ -1,0 +1,23 @@
+---
+- name: This play ensures prerequisites are satisfied before installing
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Check if distribution is supported
+      ansible.builtin.fail:
+        msg: Your distribution is actually unsupported
+      when:
+        - ansible_distribution != 'Fedora'
+
+    - name: Block of cluster checks
+      block:
+        - name: Fail if BASE_DOMAIN env var is not defined
+          ansible.builtin.fail:
+            msg: "BASE_DOMAIN environment variable is missing"
+          when: (domain is undefined) or (domain | length < 1)
+
+        - name: Fail if CLUSTER_NAME env var is not defined
+          ansible.builtin.fail:
+            msg: "CLUSTER_NAME environment variable is missing"
+          when: (cluster.name is undefined) or (cluster.name | length < 1)

@@ -10,7 +10,6 @@
         name: "{{ virtualization_packages.rhel }}"
         state: latest # noqa package-latest
       when:
-        - ansible_distribution == 'RedHat'
         - ansible_distribution == 'Fedora'
 
     - name: Download and provision Terraform
@@ -26,7 +25,6 @@
         state: started
         enabled: true
       when:
-        - ansible_distribution == 'RedHat'
         - ansible_distribution == 'Fedora'
 
 
@@ -50,7 +48,7 @@
           domain: "{{ cluster.name }}.{{ domain }}"
           network_cidr: ' ["{{ network_cidr }}"]'
           cluster_name: "{{ cluster.name }}"
-          dns: "{{ cluster_nodes.host_list.sno-worker.0.ip }}"
+          dns: "{{ cluster_nodes.host_list.sno.1.ip }}"
         force_init: true
         state: present
       become: true

@@ -34,6 +34,7 @@
         - /usr/local/bin/terraform
         - /usr/local/bin/openshift-baremetal-install
         - /usr/local/bin/coreos-installer
+        - /usr/local/bin/butane
         - /usr/local/bin/oc
         - /usr/local/bin/kubectl
         - /usr/local/bin/helm

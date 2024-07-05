@@ -1,0 +1,111 @@
+---
+- name: Play for preparing to OCP4 single-node setup
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Preparing workspace
+      ansible.builtin.file:
+        state: directory
+        path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}"
+        mode: "0755"
+
+    - name: Fetch information about the release
+      ansible.builtin.uri:
+        url: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/release.txt"
+        return_content: true
+      register: image_version
+
+    - name: Save version as fact
+      ansible.builtin.set_fact:
+        release_image: "{{ image_version.content | regex_search('Pull From: ([^\\s]+)') | replace('Pull From: ', '') }}"
+    
+    - name: OCP version number
+      ansible.builtin.set_fact:
+        coreos_live_media: "{{ downloads.coreos.live_media }}/latest/rhcos-live.x86_64.iso"
+      when: cluster.version == "latest" or cluster.version == "fast" or cluster.version == "stable" or cluster.version == "candidate"
+
+    - name: OCP version number
+      ansible.builtin.set_fact:
+        coreos_live_media: "{{ downloads.coreos.live_media }}/{{ image_version.content | regex_search('\\d\\.{1}\\d{1,2}') }}/latest/rhcos-live.x86_64.iso"
+      when:
+        - cluster.version != "latest"
+        - cluster.version != "fast"
+        - cluster.version != "stable"
+        - cluster.version != "candidate"
+
+    - name: Download coreOS ISO and save it locally
+      ansible.builtin.get_url:
+        url: "{{ coreos_live_media }}"
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso"
+        mode: "0755"
+
+    - name: Download coreOS-installer and save it locally
+      ansible.builtin.get_url:
+        url: "{{ downloads.coreos.installer }}"
+        dest: /usr/local/bin/coreos-installer
+        mode: +x
+      become: true
+
+    - name: Download Butane and save it locally
+      ansible.builtin.get_url:
+        url: "{{ downloads.coreos.butane }}"
+        dest: /usr/local/bin/butane
+        mode: +x
+      become: true
+
+    - name: copy worker ignition file from main sno node
+      ansible.builtin.shell: scp {{ ansible_user_id }}@server.arbaar.org:/{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker.ign {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker-temp.ign
+
+    - name: get content of remote file
+      slurp:
+        src: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker-temp.ign"
+      register: worker_ign
+
+    - name: Save version as fact
+      ansible.builtin.set_fact:
+        worker_ign_json: "{{ worker_ign.content | b64decode }}"
+
+    - name: Firing up worker ingintion config
+      ansible.builtin.template:
+        src: templates/worker_ign_config.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker_ign_config.yaml"
+        mode: "0755"
+
+    - name: Replace single quotes with double
+      ansible.builtin.replace:
+        path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker_ign_config.yaml"
+        regexp: "'"
+        replace: '"'
+
+    - name: Create worker ignition file
+      ansible.builtin.shell: butane --pretty --strict < {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker_ign_config.yaml > {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker.ign
+
+    
+    - name: Patch live ISO with generate ignition file # noqa command-instead-of-shell no-changed-when
+      ansible.builtin.shell: coreos-installer iso ignition embed -fi {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/worker.ign {{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso # noqa yaml[line-length]
+
+
+    - name: Provision OCP node with Terraform
+      community.general.terraform:
+        binary_path: /usr/local/bin/terraform
+        project_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/terraform/sno"
+        force_init: true
+        variables:
+          hostname: "sno-worker"
+          libvirt_network: "{{ cluster.name }}"
+          libvirt_pool: "{{ cluster.name }}"
+          guest_ip: "{{ cluster_nodes.host_list.sno.1.ip }}"
+          guest_mac: "{{ cluster_nodes.host_list.sno.1.mac }}"
+          coreos_iso_path: "{{ workspace_directory.base_path }}/{{ cluster.name }}/coreos.iso"
+          cpu: "{{ cluster_nodes.specs.sno_worker.vcpu }}"
+          memory: "{{ cluster_nodes.specs.sno_worker.mem }}"
+          vm_volume_size: "{{ cluster_nodes.specs.sno_worker.disk }}"
+          local_volume_enabled: "{{ local_storage_worker.enabled | default(false, true) }}"
+          local_volume_size: "{{ local_storage_worker.volume_size | default(omit, true) }}"
+          vm_additional_nic: "{{ additional_nic.enabled | default(false, true) }}"
+          vm_additional_nic_network: "{{ additional_nic.network | default(cluster.name, true) }}"
+        state: present
+      register: output_sno
+      become: true
+
