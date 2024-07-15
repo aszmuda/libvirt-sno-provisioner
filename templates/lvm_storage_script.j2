@@ -1,6 +1,12 @@
 #!/bin/bash
 export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
-/usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml
+until /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml 2>/dev/null
+  do
+    echo "again..."
+    sleep 5
+  done
 echo "Waiting for deployment of the lvms-operator..."
-oc wait --for=condition=Available deployment/openshift-gitops-operator-controller-manager -n operator-storage --timeout=60s
+oc wait --for=condition=Available deployment/lvms-operator -n operator-storage --timeout=60s
 /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml
+echo "Waiting for deployment of the topolvm-controller..."
+oc wait --for=condition=Available deployment/topolvm-controller -n operator-storage --timeout=60s
