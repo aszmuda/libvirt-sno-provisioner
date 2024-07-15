@@ -1,0 +1,35 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: image-registry-storage 
+  namespace: openshift-image-registry
+spec:
+  accessModes:
+  - ReadWriteOnce 
+  resources:
+    requests:
+      storage: {{ image_registry.size }}
+  
+---
+apiVersion: imageregistry.operator.openshift.io/v1
+kind: Config
+metadata:
+  name: cluster
+spec:
+  logLevel: Normal
+  rolloutStrategy: Recreate
+  managementState: Managed
+  observedConfig: null
+  operatorLogLevel: Normal
+  proxy: {}
+  replicas: 1
+  requests:
+    read:
+      maxWaitInQueue: 0s
+    write:
+      maxWaitInQueue: 0s
+  storage: 
+    pvc:
+      claim: 'image-registry-storage'
+

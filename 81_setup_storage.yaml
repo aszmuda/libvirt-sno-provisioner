@@ -1,0 +1,27 @@
+---
+- name: Play for preparing to OCP4 single-node setup
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Firing yaml configuration template for lvm-storage
+      ansible.builtin.template:
+        src: templates/lvm_storage.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml"
+        mode: "0755"
+    
+    - name: Firing yaml configuration template for lvm-cluster
+      ansible.builtin.template:
+        src: templates/lvm_cluster.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml"
+        mode: "0755"
+
+    - name: Firing configuration script template for lvm-storage creation
+      ansible.builtin.template:
+        src: templates/lvm_storage_script.j2
+        dest: /tmp/lvm_storage.sh
+        mode: +x
+
+    - name: Creating lvm-storage
+      ansible.builtin.shell: /tmp/lvm_storage.sh
+

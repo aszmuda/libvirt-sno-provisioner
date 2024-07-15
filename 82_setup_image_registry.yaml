@@ -1,0 +1,24 @@
+---
+- name: Play for preparing to OCP4 single-node setup
+  hosts: vm_host
+  vars_files:
+    - vars/sno_vars.yaml
+  tasks:
+    - name: Firing yaml configuration template for image registry
+      ansible.builtin.template:
+        src: templates/image_registry.j2
+        dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/image_registry.yaml"
+        mode: "0755"
+  
+
+    - name: Firing configuration script template for image registry creation
+      ansible.builtin.template:
+        src: templates/image_registry_script.j2
+        dest: /tmp/image_registry.sh
+        mode: +x
+
+    - name: Creating image registry
+      ansible.builtin.shell: /tmp/image_registry.sh
+      when:
+        - image_registry.enabled
+

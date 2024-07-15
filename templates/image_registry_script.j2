@@ -1,0 +1,3 @@
+#!/bin/bash
+export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
+/usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/image_registry.yaml

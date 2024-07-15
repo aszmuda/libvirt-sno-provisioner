@@ -29,6 +29,9 @@ local_storage:
 local_storage_worker:
   enabled: false
   volume_size: 200
+image_registry:
+  enabled: true
+  size: 100Gi
 additional_nic:
   enabled: false
   network: ""
