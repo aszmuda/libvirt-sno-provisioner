@@ -1,7 +1,7 @@
 domain: "{{ lookup('env', 'BASE_DOMAIN') }}"
 network_cidr: 192.168.1.0/24
 cluster:
-  version: stable-4.15
+  version: stable-4.16
   name: "{{ lookup('env', 'CLUSTER_NAME') }}"
   ocp_user: admin
   ocp_pass: admin
