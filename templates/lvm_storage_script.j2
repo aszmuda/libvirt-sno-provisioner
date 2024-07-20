@@ -5,8 +5,14 @@ until /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.
     echo "again..."
     sleep 5
   done
-echo "Waiting for deployment of the lvms-operator..."
-/usr/local/bin/oc wait --for=condition=established crd/lvmclusters.lvm.topolvm.io --timeout=60s
+echo "Waiting for deployment of the lvms-operator CRD..."
+until /usr/local/bin/oc get crd/lvmclusters.lvm.topolvm.io
+  do
+    sleep 5
+  done
 /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml
 echo "Waiting for deployment of the topolvm-controller..."
-oc wait --for=condition=Available deployment/topolvm-controller -n operator-storage --timeout=60s
+until /usr/local/bin/oc get deployment/topolvm-controller -n operator-storage
+  do
+    sleep 5
+  done
