@@ -12,7 +12,7 @@ until /usr/local/bin/oc get crd/lvmclusters.lvm.topolvm.io
   done
 /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml
 echo "Waiting for deployment of the topolvm-controller..."
-until /usr/local/bin/oc get deployment/topolvm-controller -n operator-storage
+until /usr/local/bin/oc get deployment/topolvm-controller -n openshift-storage
   do
     sleep 5
   done
