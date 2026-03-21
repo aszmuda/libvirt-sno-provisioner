@@ -5,6 +5,10 @@
     - vars/sno_vars.yaml
   become: true
   tasks:
+    - name: Stage banner - host tooling
+      ansible.builtin.debug:
+        msg: "Stage 20: installing virtualization tools and libvirt resources"
+
     - name: Install needed packages
       ansible.builtin.yum:
         name: "{{ virtualization_packages.rhel }}"
@@ -52,3 +56,7 @@
         force_init: true
         state: present
       become: true
+
+    - name: Stage banner - host tooling complete
+      ansible.builtin.debug:
+        msg: "Stage 20 complete: libvirt pool/network and tooling are ready"

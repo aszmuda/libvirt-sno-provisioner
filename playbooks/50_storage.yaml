@@ -1,0 +1,2 @@
+---
+- import_playbook: ../81_setup_storage.yaml

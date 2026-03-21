@@ -1,9 +1,9 @@
 ---
-- import_playbook: 00_sno_prerequisites.yaml
-- import_playbook: 01_sno_setup_working_directory.yaml
-- import_playbook: 02_sno_install_virtualization_tools.yaml
-- import_playbook: 70_setup_sno_cluster.yaml
-- import_playbook: 80_setup_idp.yaml
-- import_playbook: 81_setup_storage.yaml
-- import_playbook: 82_setup_image_registry.yaml
-- import_playbook: 90_update_certs.yaml
+- import_playbook: playbooks/00_prereqs.yaml
+- import_playbook: playbooks/10_workspace.yaml
+- import_playbook: playbooks/20_host_tools.yaml
+- import_playbook: playbooks/30_sno_install.yaml
+- import_playbook: playbooks/40_idp.yaml
+- import_playbook: playbooks/50_storage.yaml
+- import_playbook: playbooks/60_registry.yaml
+- import_playbook: playbooks/70_certs.yaml

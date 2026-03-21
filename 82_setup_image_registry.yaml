@@ -4,11 +4,17 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - image registry
+      ansible.builtin.debug:
+        msg: "Stage 60: configuring internal image registry"
+      when: features.image_registry_enabled and image_registry.enabled
+
     - name: Firing yaml configuration template for image registry
       ansible.builtin.template:
         src: templates/image_registry.j2
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/image_registry.yaml"
         mode: "0755"
+      when: features.image_registry_enabled and image_registry.enabled
   
 
     - name: Firing configuration script template for image registry creation
@@ -16,9 +22,16 @@
         src: templates/image_registry_script.j2
         dest: /tmp/image_registry.sh
         mode: +x
+      when: features.image_registry_enabled and image_registry.enabled
 
     - name: Creating image registry
       ansible.builtin.shell: /tmp/image_registry.sh
       when:
+        - features.image_registry_enabled
         - image_registry.enabled
+
+    - name: Stage banner - image registry skipped
+      ansible.builtin.debug:
+        msg: "Stage 60 skipped: ENABLE_IMAGE_REGISTRY is false"
+      when: not (features.image_registry_enabled and image_registry.enabled)
 

@@ -4,9 +4,13 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - prerequisites
+      ansible.builtin.debug:
+        msg: "Stage 00: validating host and required runtime variables"
+
     - name: Check if distribution is supported
       ansible.builtin.fail:
-        msg: Your distribution is actually unsupported
+        msg: "Unsupported distribution {{ ansible_distribution }}. This playbook supports RedHat/RHEL hosts."
       when:
         - ansible_distribution != 'RedHat'
 
@@ -25,7 +29,7 @@
         - name: Fail fast if node count is not consistent
           ansible.builtin.fail:
             msg: "Only ONE node can be present"
-          when: (cluster_nodes.host_list.sno | count < 1)
+          when: (cluster_nodes.host_list.sno | count != 1)
 
         - name: Fail fast if SNO node doesn't meet minimum requirements
           ansible.builtin.fail:
@@ -34,10 +38,30 @@
 
         - name: Check for pullSecret variable and fail fast
           ansible.builtin.fail:
-            msg: "Check the pullSecret var in files/vars.yaml"
+            msg: "PULL_SECRET environment variable is missing or empty"
           when: (cluster.pullSecret is undefined) or (cluster.pullSecret | length < 1)
 
         - name: Check for CERT_DIR variable and fail fast
           ansible.builtin.fail:
             msg: "CERT_DIR environment variable is missing"
-          when: (cert_dir is undefined) or (cert_dir | length < 1)
+          when:
+            - features.certs_enabled
+            - (cert_dir is undefined) or (cert_dir | length < 1)
+
+        - name: Check for OCP_USER variable and fail fast when IDP is enabled
+          ansible.builtin.fail:
+            msg: "OCP_USER environment variable is missing or empty"
+          when:
+            - features.idp_enabled
+            - (cluster.ocp_user is undefined) or (cluster.ocp_user | length < 1)
+
+        - name: Check for OCP_PASS variable and fail fast when IDP is enabled
+          ansible.builtin.fail:
+            msg: "OCP_PASS environment variable is missing or empty"
+          when:
+            - features.idp_enabled
+            - (cluster.ocp_pass is undefined) or (cluster.ocp_pass | length < 1)
+
+    - name: Stage banner - prerequisites complete
+      ansible.builtin.debug:
+        msg: "Stage 00 complete: prerequisites validation passed"

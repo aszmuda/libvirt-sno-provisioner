@@ -1,0 +1,2 @@
+---
+- import_playbook: ../70_setup_sno_cluster.yaml

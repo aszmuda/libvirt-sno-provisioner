@@ -1,0 +1,2 @@
+---
+- import_playbook: ../01_sno_setup_working_directory.yaml

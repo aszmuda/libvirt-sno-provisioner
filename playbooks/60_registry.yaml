@@ -1,0 +1,2 @@
+---
+- import_playbook: ../82_setup_image_registry.yaml

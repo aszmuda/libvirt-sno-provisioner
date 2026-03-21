@@ -4,3 +4,7 @@ terraform.tfstate*
 .terraform*
 ansible.log
 execution-environment/context
+config/.env.local
+config.env
+pull-secret
+*.retry

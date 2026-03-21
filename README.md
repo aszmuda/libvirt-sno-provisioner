@@ -1,89 +1,94 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# libvirt-sno-provisioner - Automate your Single Node OpenShift (SNO) provisioning on RHEL!
+# libvirt-sno-provisioner
 
-This project has been inspired by the [libvirt-ocp4-provisioner
-](https://github.com/kubealex/libvirt-ocp4-provisioner) project, which did a great job creating the playbooks to provision existing infrastructure nodes on `libvirt` and preparing for cluster installation.
+Automates deployment of a **Single Node OpenShift (SNO)** cluster on a local `libvirt` host for home-lab/testing use.
 
-The primary focus of scripts in this repository is to automate Single Node OpenShift (SNO) cluster creation in RHEL using Terraform and Ansible.
+## What this project does
 
-## Prerequsites 
+- Provisions one VM on `libvirt` and installs OpenShift SNO (single node acts as control-plane and worker).
+- Uses Ansible + Terraform to prepare host tools, libvirt resources, and VM artifacts.
+- Optionally configures post-install components:
+  - HTPasswd IDP
+  - LVM Storage operator
+  - Internal image registry PVC backend
+  - Custom ingress/API certificates
 
-First of all, you need to install required collections to get started:
+For architecture and file mapping, see [`docs/architecture.md`](docs/architecture.md).
+
+## Prerequisites
+
+- RHEL host with virtualization support
+- Ansible installed
+- Access to OpenShift pull secret
+- Required Ansible collections:
 
 ```bash
 ansible-galaxy collection install -r requirements.yaml
 ```
 
-The playbook is meant to run against local host/s, defined under **vm_host** group in your inventory, depending on how many clusters you want to configure at once.
+Inventory defaults to local host:
 
-Export environment variables:
+```ini
+[vm_host]
+localhost ansible_connection=local
+```
+
+## Configuration model
+
+Configuration is driven from:
+
+- `config/.env.local` (ignored, local runtime values including secrets)
+- `vars/sno_vars.yaml` (Ansible variables and env lookups)
+
+Create local env file from example:
+
 ```bash
-# replace with actual file paths and values
-export BASE_DOMAIN=mydomain.com
+cp config/.env.example config/.env.local
+```
+
+Edit `config/.env.local` with real values:
+
+```bash
+export BASE_DOMAIN=example.lab
 export CLUSTER_NAME=sno
-export PULL_SECRET=$(cat ~/tmp/pull-secret)
-export CERT_DIR=~/tmp/cert/mycert # directory with Let's Encrypt key, cert, and ca.crt
+export OCP_USER=admin
+export OCP_PASS='replace-me'
+export PULL_SECRET='...'
+export CERT_DIR=~/.acme.sh/example.lab_ecc
 ```
 
-
-## Run playbook
+Load `.env.local` before running playbooks:
 
 ```bash
-ansible-playbook main-sno.yaml
+source scripts/load-env.sh
 ```
 
-You can quickly make it work by configuring the needed vars, but you can go straight with the defaults!
+## Run SNO install
 
-
-## Common vars
-
-**vars/sno_vars.yaml**
-
-```yaml
-domain: "{{ lookup('env', 'BASE_DOMAIN') }}"
-network_cidr: 192.168.1.0/24
-cluster:
-  version: stable
-  name: "{{ lookup('env', 'CLUSTER_NAME') }}"
-  ocp_user: admin
-  ocp_pass: admin
-  pullSecret: "{{ lookup('env', 'PULL_SECRET') }}"
-cluster_nodes:
-  host_list:
-    sno:
-      - ip: 192.168.1.17
-        mac: 52:54:00:1f:35:50
-  specs:
-    sno:
-      vcpu: 16
-      mem: 56
-      disk: 240
-local_storage:
-  enabled: true
-  volume_size: 200
-additional_nic:
-  enabled: false
-  network: ""
-cert_dir: "{{ lookup('env', 'CERT_DIR') }}"
+```bash
+ansible-playbook -i inventory main-sno.yaml
 ```
 
-**local_storage** field can be used to provision an additional disk to the VM in order to provision volumes using, for instance, rook-ceph or local storage operator.
+The main entrypoint imports normalized playbook names in `playbooks/`.
 
-**additional_nic** allows the creation of an additional network interface on the node. It is possible to customize the libvirt network to attach to it.
+## Optional feature flags
 
-In both cases, Pull Secret can be retrived easily at [https://cloud.redhat.com/openshift/install/pull-secret](https://cloud.redhat.com/openshift/install/pull-secret)
+All enabled by default unless overridden in env:
 
-**HTPasswd** provider is created after the installation, you can use **ocp_user** and **ocp_pass** to login!
+- `ENABLE_IDP=true|false`
+- `ENABLE_STORAGE=true|false`
+- `ENABLE_IMAGE_REGISTRY=true|false`
+- `ENABLE_CERTS=true|false`
 
 ## Cleanup
 
-To clean all resources, you can simply run the cleanup playbooks.
-
 ```bash
-ansible-playbook -i inventory 99_cleanup_sno.yaml
+ansible-playbook -i inventory playbooks/99_cleanup.yaml
 ```
 
-**DISCLAIMER**
-This project is for testing/lab only, it is not supported in any way by Red Hat nor endorsed.
+## Notes
+
+- This project is intended for home-lab/testing usage.
+- Do not commit sensitive files (`config/.env.local`, pull secrets, generated auth artifacts).
 

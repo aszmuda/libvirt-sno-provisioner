@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
 until /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml 2>/dev/null
   do

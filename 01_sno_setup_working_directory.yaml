@@ -2,8 +2,12 @@
 - name: This play installs needed tools to provision infrastructure VMs
   hosts: vm_host
   vars_files:
-    - sno_vars.yaml
+    - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - workspace setup
+      ansible.builtin.debug:
+        msg: "Stage 10: preparing local workspace and Terraform assets"
+
     - name: Set home directory as fact for the user
       ansible.builtin.set_fact:
         home_dir: "{{ ansible_env.HOME }}"
@@ -19,4 +23,8 @@
         src: "{{ playbook_dir }}/terraform"
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/"
         mode: "0755"
+
+    - name: Stage banner - workspace setup complete
+      ansible.builtin.debug:
+        msg: "Stage 10 complete: workspace initialized at {{ workspace_directory.base_path }}/{{ cluster.name }}"
 

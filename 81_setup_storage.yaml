@@ -4,24 +4,38 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - storage
+      ansible.builtin.debug:
+        msg: "Stage 50: configuring LVM storage operator"
+      when: features.storage_enabled and local_storage.enabled
+
     - name: Firing yaml configuration template for lvm-storage
       ansible.builtin.template:
         src: templates/lvm_storage.j2
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml"
         mode: "0755"
+      when: features.storage_enabled and local_storage.enabled
     
     - name: Firing yaml configuration template for lvm-cluster
       ansible.builtin.template:
         src: templates/lvm_cluster.j2
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml"
         mode: "0755"
+      when: features.storage_enabled and local_storage.enabled
 
     - name: Firing configuration script template for lvm-storage creation
       ansible.builtin.template:
         src: templates/lvm_storage_script.j2
         dest: /tmp/lvm_storage.sh
         mode: +x
+      when: features.storage_enabled and local_storage.enabled
 
     - name: Creating lvm-storage
       ansible.builtin.shell: /tmp/lvm_storage.sh
+      when: features.storage_enabled and local_storage.enabled
+
+    - name: Stage banner - storage skipped
+      ansible.builtin.debug:
+        msg: "Stage 50 skipped: ENABLE_STORAGE or local_storage.enabled is false"
+      when: not (features.storage_enabled and local_storage.enabled)
 

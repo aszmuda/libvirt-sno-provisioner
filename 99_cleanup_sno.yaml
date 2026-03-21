@@ -4,6 +4,10 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - cleanup
+      ansible.builtin.debug:
+        msg: "Stage 99: cleaning SNO resources and local artifacts"
+
     - name: Set home directory as fact
       ansible.builtin.set_fact:
         home_dir: "{{ ansible_env.HOME }}"
@@ -42,3 +46,7 @@
         - /usr/local/bin/yq
         - "{{ workspace_directory.base_path }}/{{ cluster.name }}"
       become: true
+
+    - name: Stage banner - cleanup complete
+      ansible.builtin.debug:
+        msg: "Stage 99 complete: cleanup finished"

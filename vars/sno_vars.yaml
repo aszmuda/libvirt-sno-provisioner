@@ -1,36 +1,31 @@
 domain: "{{ lookup('env', 'BASE_DOMAIN') }}"
 network_cidr: 192.168.1.0/24
 cluster:
-  version: stable-4.16
+  version: stable-4.20
   name: "{{ lookup('env', 'CLUSTER_NAME') }}"
-  ocp_user: admin
-  ocp_pass: admin
+  ocp_user: "{{ lookup('env', 'OCP_USER') }}"
+  ocp_pass: "{{ lookup('env', 'OCP_PASS') }}"
   pullSecret: "{{ lookup('env', 'PULL_SECRET') }}"
+features:
+  idp_enabled: "{{ lookup('env', 'ENABLE_IDP') | default('true', true) | bool }}"
+  storage_enabled: "{{ lookup('env', 'ENABLE_STORAGE') | default('true', true) | bool }}"
+  image_registry_enabled: "{{ lookup('env', 'ENABLE_IMAGE_REGISTRY') | default('true', true) | bool }}"
+  certs_enabled: "{{ lookup('env', 'ENABLE_CERTS') | default('true', true) | bool }}"
 cluster_nodes:
   host_list:
       sno:
       - ip: 192.168.1.17
         mac: 52:54:00:1f:35:50
-      - ip: 192.168.1.18
-        mac: 52:54:00:05:ff:73
   specs:
     sno:
       vcpu: 24
       mem: 48
       disk: 240
-    sno_worker:
-      vcpu: 9
-      mem: 48
-      disk: 120
-      disk_drive: /dev/vda
 local_storage:
   enabled: true
   volume_size: 200
-local_storage_worker:
-  enabled: false
-  volume_size: 200
 image_registry:
-  enabled: true
+  enabled: "{{ features.image_registry_enabled }}"
   size: 100Gi
 additional_nic:
   enabled: false

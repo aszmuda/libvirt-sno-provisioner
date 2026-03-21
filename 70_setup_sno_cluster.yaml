@@ -4,6 +4,10 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - SNO installation
+      ansible.builtin.debug:
+        msg: "Stage 30: preparing OpenShift artifacts and provisioning the SNO VM"
+
     - name: Preparing workspace
       ansible.builtin.file:
         state: directory
@@ -22,12 +26,12 @@
     
     - name: OCP version number
       ansible.builtin.set_fact:
-        coreos_live_media: "{{ downloads.coreos.live_media }}/latest/rhcos-live.x86_64.iso"
+        coreos_live_media: "{{ downloads.coreos.live_media }}/latest/rhcos-live-iso.x86_64.iso"
       when: cluster.version == "latest" or cluster.version == "fast" or cluster.version == "stable" or cluster.version == "candidate"
 
     - name: OCP version number
       ansible.builtin.set_fact:
-        coreos_live_media: "{{ downloads.coreos.live_media }}/{{ image_version.content | regex_search('\\d\\.{1}\\d{1,2}') }}/latest/rhcos-live.x86_64.iso"
+        coreos_live_media: "{{ downloads.coreos.live_media }}/{{ image_version.content | regex_search('\\d\\.{1}\\d{1,2}') }}/latest/rhcos-live-iso.x86_64.iso"
       when:
         - cluster.version != "latest"
         - cluster.version != "fast"
@@ -40,19 +44,6 @@
         dest: /usr/local/bin
         remote_src: true
       become: true
-      when:
-        - cluster.version != "latest"
-        - cluster.version != "fast"
-        - cluster.version != "stable"
-        - cluster.version != "candidate"
-
-    - name: Downloading Openshift CLI
-      ansible.builtin.unarchive:
-        src: "{{ downloads.ocp.base_url }}/{{ cluster.version }}/openshift-client-linux.tar.gz"
-        dest: /usr/local/bin
-        remote_src: true
-      become: true
-      when: cluster.version == "latest" or cluster.version == "fast" or cluster.version == "stable" or cluster.version == "candidate"
 
     - name: Checking for OCP cli tool # noqa no-changed-when
       ansible.builtin.command: oc
@@ -134,11 +125,13 @@
       become: true
 
     - name: Start Openshift install # noqa command-instead-of-shell no-changed-when
-      ansible.builtin.shell: openshift-baremetal-install wait-for install-complete --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }} # noqa yaml[line-length]
-      ignore_errors: true
-
-    - name: Start Openshift install # noqa command-instead-of-shell no-changed-when
-      ansible.builtin.shell: openshift-baremetal-install wait-for install-complete --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }} # noqa yaml[line-length]
+      ansible.builtin.command: >-
+        openshift-baremetal-install wait-for install-complete
+        --dir {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}
+      register: install_wait
+      retries: 2
+      delay: 10
+      until: install_wait.rc == 0
 
     - name: Your cluster is ready
       ansible.builtin.debug:
@@ -146,3 +139,8 @@
           - "Cluster setup finished"
           - "Console URL: https://console-openshift-console.apps.{{ cluster.name }}.{{ domain }}"
           - "Kubeconfig available at {{ workspace_directory.base_path }}/{{ cluster.name }}/{{ workspace_directory.config_dir }}/auth or log in the console with the credentials you chose" # noqa yaml[line-length]
+          - "Enabled optional stages: IDP={{ features.idp_enabled }}, STORAGE={{ features.storage_enabled }}, IMAGE_REGISTRY={{ features.image_registry_enabled }}, CERTS={{ features.certs_enabled }}"
+
+    - name: Stage banner - SNO installation complete
+      ansible.builtin.debug:
+        msg: "Stage 30 complete: OpenShift SNO provisioning workflow finished"

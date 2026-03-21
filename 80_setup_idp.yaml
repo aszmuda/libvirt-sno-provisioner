@@ -4,30 +4,45 @@
   vars_files:
     - vars/sno_vars.yaml
   tasks:
+    - name: Stage banner - IDP
+      ansible.builtin.debug:
+        msg: "Stage 40: configuring HTPasswd IDP"
+      when: features.idp_enabled
+
     - name: Ensuring httpd-tools is present
       ansible.builtin.yum:
         name: httpd-tools
         state: present
       become: true
+      when: features.idp_enabled
 
     - name: Ensuring passlib is present
       ansible.builtin.pip:
         name:
           - passlib
           - bcrypt
+      when: features.idp_enabled
 
     - name: Firing yaml configuration template for identity providers
       ansible.builtin.template:
         src: templates/idp.j2
         dest: "{{ workspace_directory.base_path }}/{{ cluster.name }}/idp.yaml"
         mode: "0755"
+      when: features.idp_enabled
 
     - name: Firing configuration script template for idp and user creation
       ansible.builtin.template:
         src: templates/idp_script.j2
         dest: /tmp/idp.sh
         mode: +x
+      when: features.idp_enabled
 
     - name: Creating idp and user # noqa command-instead-of-shell no-changed-when
       ansible.builtin.shell: /tmp/idp.sh
+      when: features.idp_enabled
+
+    - name: Stage banner - IDP skipped
+      ansible.builtin.debug:
+        msg: "Stage 40 skipped: ENABLE_IDP is false"
+      when: not features.idp_enabled
 

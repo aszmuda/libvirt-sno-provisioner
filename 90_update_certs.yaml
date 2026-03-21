@@ -5,19 +5,32 @@
     - vars/sno_vars.yaml
 
   tasks:
+    - name: Stage banner - cert update
+      ansible.builtin.debug:
+        msg: "Stage 70: updating ingress and API certificates"
+      when: features.certs_enabled
+
     - name: Download yq installer and save it locally
       ansible.builtin.get_url:
         url: "{{ downloads.yq.base_url }}"
         dest: /usr/local/bin/yq
         mode: +x
       become: true
+      when: features.certs_enabled
 
     - name: Firing configuration script template for certificates update
       ansible.builtin.template:
         src: templates/certs.j2
         dest: /tmp/certs.sh
         mode: +x
+      when: features.certs_enabled
 
     - name: Updating certs # noqa command-instead-of-shell no-changed-when
       ansible.builtin.shell: /tmp/certs.sh
+      when: features.certs_enabled
+
+    - name: Stage banner - cert update skipped
+      ansible.builtin.debug:
+        msg: "Stage 70 skipped: ENABLE_CERTS is false"
+      when: not features.certs_enabled
 
