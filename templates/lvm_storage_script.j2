@@ -2,6 +2,30 @@
 set -euo pipefail
 
 export KUBECONFIG={{ workspace_directory.base_path }}/{{ cluster.name }}/config/auth/kubeconfig
+
+wait_for_deployment_exists() {
+  local deployment_name="$1"
+  local namespace="$2"
+  local max_attempts="$3"
+  local sleep_seconds="$4"
+  local attempt=1
+
+  while [[ "${attempt}" -le "${max_attempts}" ]]
+    do
+      if /usr/local/bin/oc get "deployment/${deployment_name}" -n "${namespace}" >/dev/null 2>&1; then
+        return 0
+      fi
+      sleep "${sleep_seconds}"
+      attempt=$((attempt + 1))
+    done
+
+  echo "Timed out waiting for deployment/${deployment_name} to be created in namespace ${namespace}."
+  return 1
+}
+
+lvms_wait_attempts=120
+lvms_wait_sleep_seconds=5
+
 until /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_storage.yaml 2>/dev/null
   do
     echo "again..."
@@ -12,6 +36,9 @@ until /usr/local/bin/oc get crd/lvmclusters.lvm.topolvm.io
   do
     sleep 5
   done
+
+echo "Waiting for lvms-operator deployment to be created..."
+wait_for_deployment_exists "lvms-operator" "openshift-storage" "${lvms_wait_attempts}" "${lvms_wait_sleep_seconds}"
 
 echo "Waiting for lvms-operator deployment to become available..."
 /usr/local/bin/oc wait -n openshift-storage --for=condition=Available deployment/lvms-operator --timeout=10m
@@ -28,11 +55,11 @@ attempt=1
 last_error=""
 while [[ "${attempt}" -le "${max_attempts}" ]]
   do
-    if /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml 2>"/tmp/lvm_cluster_apply_error.${cluster.name}.log"; then
+    if /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml 2>"/tmp/lvm_cluster_apply_error.{{ cluster.name }}.log"; then
       break
     fi
 
-    last_error="$(<"/tmp/lvm_cluster_apply_error.${cluster.name}.log")"
+    last_error="$(<"/tmp/lvm_cluster_apply_error.{{ cluster.name }}.log")"
     echo "lvm_cluster.yaml apply attempt ${attempt}/${max_attempts} failed; retrying in 10s..."
     attempt=$((attempt + 1))
     sleep 10
@@ -44,5 +71,8 @@ if [[ "${attempt}" -gt "${max_attempts}" ]]; then
   exit 1
 fi
 
-echo "Waiting for deployment of the topolvm-controller..."
+echo "Re-confirming lvms-operator deployment exists before final availability check..."
+wait_for_deployment_exists "lvms-operator" "openshift-storage" "${lvms_wait_attempts}" "${lvms_wait_sleep_seconds}"
+
+echo "Waiting for deployment of the lvms-operator..."
 /usr/local/bin/oc wait -n openshift-storage --for=condition=Available deployment/lvms-operator --timeout=10m
