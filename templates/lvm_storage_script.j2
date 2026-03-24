@@ -12,9 +12,37 @@ until /usr/local/bin/oc get crd/lvmclusters.lvm.topolvm.io
   do
     sleep 5
   done
-/usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml
-echo "Waiting for deployment of the topolvm-controller..."
-until /usr/local/bin/oc get deployment/lvms-operator -n openshift-storage
+
+echo "Waiting for lvms-operator deployment to become available..."
+/usr/local/bin/oc wait -n openshift-storage --for=condition=Available deployment/lvms-operator --timeout=10m
+
+echo "Waiting for webhook endpoints on lvms-operator-service..."
+until [[ -n "$(/usr/local/bin/oc get endpoints/lvms-operator-service -n openshift-storage -o jsonpath='{.subsets[*].addresses[*].ip}' 2>/dev/null)" ]]
   do
     sleep 5
   done
+
+echo "Applying lvm_cluster.yaml with retries..."
+max_attempts=12
+attempt=1
+last_error=""
+while [[ "${attempt}" -le "${max_attempts}" ]]
+  do
+    if /usr/local/bin/oc apply -f {{ workspace_directory.base_path }}/{{ cluster.name }}/lvm_cluster.yaml 2>"/tmp/lvm_cluster_apply_error.${cluster.name}.log"; then
+      break
+    fi
+
+    last_error="$(<"/tmp/lvm_cluster_apply_error.${cluster.name}.log")"
+    echo "lvm_cluster.yaml apply attempt ${attempt}/${max_attempts} failed; retrying in 10s..."
+    attempt=$((attempt + 1))
+    sleep 10
+  done
+
+if [[ "${attempt}" -gt "${max_attempts}" ]]; then
+  echo "Failed to apply lvm_cluster.yaml after ${max_attempts} attempts."
+  echo "${last_error}"
+  exit 1
+fi
+
+echo "Waiting for deployment of the topolvm-controller..."
+/usr/local/bin/oc wait -n openshift-storage --for=condition=Available deployment/lvms-operator --timeout=10m
